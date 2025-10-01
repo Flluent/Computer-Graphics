@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 
-image = cv2.imread('Testphoto.JPG')
+image = cv2.imread('bliss.JPG')
 
 image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
@@ -62,7 +62,7 @@ plt.xlabel('Значение пикселя')
 plt.ylabel('Частота')
 plt.xlim(0, 255)
 
-# 7. Синего канала
+# Синего канала
 plt.subplot(2, 4, 7)
 plt.hist(b_channel.ravel(), bins=256, color='blue', alpha=0.7)
 plt.title('Гистограмма синего канала')
@@ -70,7 +70,7 @@ plt.xlabel('Значение пикселя')
 plt.ylabel('Частота')
 plt.xlim(0, 255)
 
-# 8. Совмещенная
+# Совмещенная
 plt.subplot(2, 4, 8)
 plt.hist(r_channel.ravel(), bins=256, color='red', alpha=0.5, label='Red')
 plt.hist(g_channel.ravel(), bins=256, color='green', alpha=0.5, label='Green')
