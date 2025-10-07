@@ -9,7 +9,8 @@ edge_points = []  # two points for classification: O and A
 test_point = None  # test point B for classification
 classification = None
 intersection_point = None  # for visualization
-
+selected_edges = []  # for highlighting selected edges
+window_size = (800, 600)  # initial window size
 window_name = "Polygon Geometry Tool"
 
 
@@ -58,7 +59,7 @@ def classify_point_relative_to_edge(O, A, B):
 
 # --- Mouse Handler ---
 def mouse_callback(event, x, y, flags, param):
-    global current_poly, polygons, edges, edge_points, test_point, classification, intersection_point
+    global current_poly, polygons, edges, edge_points, test_point, classification, intersection_point, selected_edges
 
     if event == cv2.EVENT_LBUTTONDOWN:
         # Ctrl + Left Click → classification mode
@@ -81,24 +82,23 @@ def mouse_callback(event, x, y, flags, param):
             print(f"Vertex added: ({x}, {y})")
 
     elif event == cv2.EVENT_RBUTTONDOWN:
-        # Finish polygon
+        # Finish polygon only if it has at least 3 vertices
         if len(current_poly) >= 3:
             polygons.append(np.array(current_poly, np.int32))
             print(f"Polygon completed with {len(current_poly)} vertices")
-        elif len(current_poly) == 2:
-            polygons.append(np.array(current_poly, np.int32))
-            print("Edge created")
-        elif len(current_poly) == 1:
-            polygons.append(np.array(current_poly, np.int32))
-            print("Point created")
-        current_poly = []
+            current_poly = []
+        else:
+            print(f"Cannot finish polygon: need at least 3 vertices (currently {len(current_poly)})")
 
     elif event == cv2.EVENT_MBUTTONDOWN:
         # Middle click → select edges for intersection
         if polygons:
             min_dist = float('inf')
             nearest_edge = None
-            for poly in polygons:
+            nearest_poly_idx = -1
+            nearest_edge_idx = -1
+
+            for poly_idx, poly in enumerate(polygons):
                 for i in range(len(poly)):
                     p1 = tuple(poly[i])
                     p2 = tuple(poly[(i + 1) % len(poly)])
@@ -117,10 +117,15 @@ def mouse_callback(event, x, y, flags, param):
                     if dist < min_dist:
                         min_dist = dist
                         nearest_edge = (p1, p2)
+                        nearest_poly_idx = poly_idx
+                        nearest_edge_idx = i
 
             if nearest_edge and min_dist < 10:  # threshold for selection
                 edges.append(nearest_edge)
+                selected_edges.append((nearest_poly_idx, nearest_edge_idx))
                 print(f"Edge selected: {nearest_edge}")
+                print(f"From polygon {nearest_poly_idx}, edge {nearest_edge_idx}")
+
                 if len(edges) == 2:
                     p1, p2 = edges[0]
                     p3, p4 = edges[1]
@@ -131,11 +136,12 @@ def mouse_callback(event, x, y, flags, param):
                         print("Edges do not intersect.")
                         intersection_point = None
                     edges = []  # reset for next selection
+                    selected_edges = []
 
 
 # --- Clear Scene ---
 def clear_scene():
-    global polygons, current_poly, edges, edge_points, test_point, classification, intersection_point
+    global polygons, current_poly, edges, edge_points, test_point, classification, intersection_point, selected_edges
     polygons = []
     current_poly = []
     edges = []
@@ -143,6 +149,7 @@ def clear_scene():
     test_point = None
     classification = None
     intersection_point = None
+    selected_edges = []
     print("Scene cleared.")
 
 
@@ -155,33 +162,57 @@ def reset_classification():
     print("Classification reset.")
 
 
+# --- Resize Window ---
+def resize_window(new_width, new_height):
+    global window_size
+    window_size = (new_width, new_height)
+    cv2.resizeWindow(window_name, new_width, new_height)
+
+
 # --- Main Loop ---
-cv2.namedWindow(window_name)
+cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
+cv2.resizeWindow(window_name, window_size[0], window_size[1])
 cv2.setMouseCallback(window_name, mouse_callback)
 
 print("""
 Controls:
   Left Click  – Add polygon vertex
-  Right Click – Finish current polygon
+  Right Click – Finish current polygon (requires at least 3 vertices)
   Middle Click – Select two edges to check intersection
   Ctrl + Left Click ×2 – Set edge points O and A for classification
   Ctrl + Left Click ×3 – Set test point B and get classification
   C – Clear scene
   R – Reset classification only
+  + / = – Increase window size
+  - – Decrease window size
   Q – Quit
 """)
 
 while True:
-    img = np.ones((600, 800, 3), np.uint8) * 255
+    # Create image with current window size
+    img = np.ones((window_size[1], window_size[0], 3), np.uint8) * 255
 
     # Draw all polygons
-    for poly in polygons:
+    for poly_idx, poly in enumerate(polygons):
         if len(poly) == 1:
             cv2.circle(img, tuple(poly[0]), 3, (0, 0, 255), -1)
         elif len(poly) == 2:
             cv2.line(img, tuple(poly[0]), tuple(poly[1]), (0, 0, 255), 2)
         else:
             cv2.polylines(img, [poly], True, (0, 0, 255), 2)
+
+    # Draw selected edges with highlighting
+    for poly_idx, edge_idx in selected_edges:
+        if poly_idx < len(polygons):
+            poly = polygons[poly_idx]
+            if len(poly) > 1:
+                p1 = tuple(poly[edge_idx])
+                p2 = tuple(poly[(edge_idx + 1) % len(poly)])
+                # Draw highlighted edge
+                cv2.line(img, p1, p2, (255, 0, 255), 4)  # Magenta color for selected edges
+                # Draw endpoints
+                cv2.circle(img, p1, 6, (255, 0, 255), -1)
+                cv2.circle(img, p2, 6, (255, 0, 255), -1)
 
     # Draw current polygon
     if len(current_poly) > 1:
@@ -222,14 +253,29 @@ while True:
         cv2.putText(img, "Intersection", (intersection_point[0] + 10, intersection_point[1]),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 150, 0), 2)
 
+    # Show current vertex count
+    if len(current_poly) > 0:
+        vertex_info = f"Current vertices: {len(current_poly)} (need {3 - len(current_poly)} more to finish)"
+        cv2.putText(img, vertex_info, (10, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 2)
+
+    # Show selected edges info
+    if selected_edges:
+        selection_info = f"Selected edges: {len(selected_edges)}/2"
+        cv2.putText(img, selection_info, (10, 55), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 255), 2)
+
+    # Show window size info
+    size_info = f"Window: {window_size[0]}x{window_size[1]} (+/- to resize)"
+    cv2.putText(img, size_info, (10, window_size[1] - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (100, 100, 100), 1)
+
     # Draw instructions
     instructions = [
         "Ctrl+Click: Set O, A, B for classification",
-        "Middle Click: Select edges for intersection",
-        "C: Clear, R: Reset classification, Q: Quit"
+        "Middle Click: Select edges for intersection (highlighted in magenta)",
+        "C: Clear, R: Reset classification, Q: Quit",
+        "+/-: Resize window"
     ]
     for i, text in enumerate(instructions):
-        cv2.putText(img, text, (10, 550 + i * 25), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1)
+        cv2.putText(img, text, (10, window_size[1] - 80 + i * 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1)
 
     cv2.imshow(window_name, img)
     key = cv2.waitKey(20) & 0xFF
@@ -240,5 +286,15 @@ while True:
         clear_scene()
     elif key == ord('r'):
         reset_classification()
+    elif key in [ord('+'), ord('=')]:  # Increase window size
+        new_width = min(2000, window_size[0] + 100)
+        new_height = min(1500, window_size[1] + 100)
+        resize_window(new_width, new_height)
+        print(f"Window resized to: {new_width}x{new_height}")
+    elif key == ord('-'):  # Decrease window size
+        new_width = max(400, window_size[0] - 100)
+        new_height = max(300, window_size[1] - 100)
+        resize_window(new_width, new_height)
+        print(f"Window resized to: {new_width}x{new_height}")
 
 cv2.destroyAllWindows()
