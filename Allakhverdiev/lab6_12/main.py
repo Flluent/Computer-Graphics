@@ -1,39 +1,22 @@
 # lab6_poly.py
-"""
-ЛР-6: правильные многогранники + аффинные преобразования (матрицы 4x4)
-Классы: Point3D, Polygon3D, Polyhedron
-Построены: тетраэдр, куб (гексаэдр), октаэдр
-Применение преобразований: translate, scale, rotate_x/y/z, rotate_axis, scale_about_center
-Визуализация: matplotlib 3D
-"""
-
 import numpy as np
-from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
+from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 import math
 
-# ---------------------
-# Утилиты для однородных координат
-# ---------------------
 def to_homogeneous(points):
-    """points: (N,3) array -> (N,4) homogeneous"""
     pts = np.asarray(points, dtype=float)
     ones = np.ones((pts.shape[0], 1), dtype=float)
     return np.hstack([pts, ones])
 
 def from_homogeneous(points_h):
-    """points_h: (N,4) -> (N,3)"""
     ph = np.asarray(points_h, dtype=float)
     w = ph[:, 3:4]
-    # если w == 0 — оставляем как есть (редко в аффинных преобразованиях)
     with np.errstate(divide='ignore', invalid='ignore'):
         coords = ph[:, :3] / w
     return coords
 
-# ---------------------
-# Матрицы 4x4 (аффинные)
-# ---------------------
 def mat_identity():
     return np.eye(4, dtype=float)
 
@@ -52,7 +35,6 @@ def mat_scale(sx, sy, sz):
     return M
 
 def mat_scale_about_point(sx, sy, sz, point):
-    """Scale about given point (px,py,pz)."""
     px, py, pz = point
     return mat_translate(px, py, pz) @ mat_scale(sx, sy, sz) @ mat_translate(-px, -py, -pz)
 
@@ -81,10 +63,6 @@ def mat_rotate_z(angle_deg):
     return M
 
 def mat_rotate_axis(axis, angle_deg):
-    """
-    Rodrigues rotation around arbitrary axis passing through origin.
-    axis: (3,) vector
-    """
     ux, uy, uz = np.asarray(axis, dtype=float)
     norm = math.sqrt(ux*ux + uy*uy + uz*uz)
     if norm == 0:
@@ -100,20 +78,13 @@ def mat_rotate_axis(axis, angle_deg):
     ], dtype=float)
     return R
 
-
-
-
-
-# ---------------------
-# Классы геометрии
-# ---------------------
 class Point3D:
     def __init__(self, x, y, z):
         self.coords = np.array([float(x), float(y), float(z)], dtype=float)
     def as_array(self):
         return self.coords.copy()
     def transform(self, M):
-        p_h = to_homogeneous(self.coords.reshape(1,3))  # (1,4)
+        p_h = to_homogeneous(self.coords.reshape(1,3))
         p2 = (p_h @ M.T)
         return Point3D(*from_homogeneous(p2)[0])
     def __repr__(self):
@@ -121,9 +92,6 @@ class Point3D:
 
 class Polygon3D:
     def __init__(self, vertices):
-        """
-        vertices: list of Point3D or Nx3 arrays
-        """
         processed = []
         for v in vertices:
             if isinstance(v, Point3D):
@@ -145,10 +113,8 @@ class Polygon3D:
 
 class Polyhedron:
     def __init__(self, polygons=None):
-        """polygons: list of Polygon3D"""
         self.polygons = polygons if polygons is not None else []
     def vertices_array(self):
-        """Возвращает все вершины как массив (может дублировать одинаковые вершины)."""
         pts = []
         for poly in self.polygons:
             pts.extend(poly.to_array())
@@ -159,14 +125,10 @@ class Polyhedron:
             return np.array([0.0,0.0,0.0])
         return arr.mean(axis=0)
     def transform(self, M):
-        """Возвращает новый Polyhedron, трансформированный матрицей M."""
         return Polyhedron([poly.transform(M) for poly in self.polygons])
     def apply_inplace(self, M):
-        """Модифицирует текущий объект (in-place)."""
         self.polygons = [poly.transform(M) for poly in self.polygons]
-    # --- Визуализация ---
     def plot(self, ax=None, face_color=(0.7,0.8,1.0), edge_color='k', alpha=0.9, linewidth=1):
-        """Построить многогранник в заданной 3D-оси matplotlib."""
         if ax is None:
             fig = plt.figure(figsize=(7,7))
             ax = fig.add_subplot(111, projection='3d')
@@ -174,22 +136,18 @@ class Polyhedron:
         else:
             created_fig = False
         poly_verts = [poly.to_array() for poly in self.polygons]
-        # Poly3DCollection expects list of (N,3) arrays
         coll = Poly3DCollection(poly_verts, facecolors=face_color, edgecolors=edge_color,
                                 linewidths=linewidth, alpha=alpha)
         ax.add_collection3d(coll)
-        # autoscale
         all_pts = self.vertices_array()
         if all_pts.size == 0:
             return ax
         xmin, ymin, zmin = all_pts.min(axis=0)
         xmax, ymax, zmax = all_pts.max(axis=0)
         max_range = max(xmax-xmin, ymax-ymin, zmax-zmin)
-        # center
         cx = 0.5*(xmax + xmin)
         cy = 0.5*(ymax + ymin)
         cz = 0.5*(zmax + zmin)
-        # set limits
         half = max_range/2 + 1e-6
         ax.set_xlim(cx-half, cx+half)
         ax.set_ylim(cy-half, cy+half)
@@ -199,12 +157,7 @@ class Polyhedron:
             plt.show()
         return ax
 
-# ---------------------
-# Построение правильных многогранников (центр в 0, масштаб 1)
-# ---------------------
 def make_tetrahedron():
-    # правильный тетраэдр: 4 вершины
-    # координаты для центрированного тетраэдра (вписаны в сферу радиуса 1)
     a = 1.0
     verts = [
         ( a,  a,  a),
@@ -224,16 +177,15 @@ def make_tetrahedron():
     return Polyhedron(polys)
 
 def make_cube():
-    # куб со стороной 2, центр 0
     v = [(-1,-1,-1), (1,-1,-1), (1,1,-1), (-1,1,-1),
          (-1,-1,1),  (1,-1,1),  (1,1,1),  (-1,1,1)]
     faces_idx = [
-        [0,1,2,3],  # нижняя
-        [4,7,6,5],  # верхняя
-        [0,4,5,1],  # передняя
-        [1,5,6,2],  # правая
-        [2,6,7,3],  # задняя
-        [3,7,4,0],  # левая
+        [0,1,2,3],
+        [4,7,6,5],
+        [0,4,5,1],
+        [1,5,6,2],
+        [2,6,7,3],
+        [3,7,4,0],
     ]
     polys = []
     for f in faces_idx:
@@ -241,7 +193,6 @@ def make_cube():
     return Polyhedron(polys)
 
 def make_octahedron():
-    # октаэдр: вершины на осях
     verts = [(1,0,0), (-1,0,0), (0,1,0), (0,-1,0), (0,0,1), (0,0,-1)]
     faces_idx = [
         [0,2,4], [2,1,4], [1,3,4], [3,0,4],
@@ -252,16 +203,157 @@ def make_octahedron():
         polys.append(Polygon3D([Point3D(*verts[i]) for i in f]))
     return Polyhedron(polys)
 
-# ---------------------
-# Примеры использования (оригинальные)
-# ---------------------
+# 5-6: Функции для вращения вокруг произвольной оси и выбора проекции
+def mat_rotate_about_axis(p1, p2, angle_deg):
+    """
+    Матрица поворота вокруг произвольной оси, заданной двумя точками p1 и p2
+    """
+    axis = np.array([p2[0]-p1[0], p2[1]-p1[1], p2[2]-p1[2]], dtype=float)
+    norm = np.linalg.norm(axis)
+    if norm == 0:
+        return mat_identity()
+    axis = axis / norm
+    T1 = mat_translate(-p1[0], -p1[1], -p1[2])
+    T2 = mat_translate(p1[0], p1[1], p1[2])
+    R = mat_rotate_axis(axis, angle_deg)
+    return T2 @ R @ T1
+
+def mat_rotate_about_center_axis(polyhedron, axis_direction, angle_deg):
+    """
+    Матрица поворота вокруг прямой через центр многогранника параллельно координатной оси
+    """
+    center = polyhedron.centroid()
+    if axis_direction == 'x':
+        p2 = center + np.array([1, 0, 0])
+    elif axis_direction == 'y':
+        p2 = center + np.array([0, 1, 0])
+    elif axis_direction == 'z':
+        p2 = center + np.array([0, 0, 1])
+    else:
+        raise ValueError("axis_direction must be 'x', 'y' or 'z'")
+    return mat_rotate_about_axis(center, p2, angle_deg)
+
+class Polyhedron56(Polyhedron):
+    """Расширенный класс многогранника с дополнительными преобразованиями для заданий 5-6"""
+    
+    def rotate_about_axis(self, p1, p2, angle_deg):
+        """Поворот вокруг произвольной оси (по двум точкам)"""
+        M = mat_rotate_about_axis(p1, p2, angle_deg)
+        return Polyhedron56([poly.transform(M) for poly in self.polygons])
+    
+    def rotate_about_center_axis(self, axis_direction, angle_deg):
+        """Поворот вокруг прямой через центр, параллельной координатной оси"""
+        M = mat_rotate_about_center_axis(self, axis_direction, angle_deg)
+        return Polyhedron56([poly.transform(M) for poly in self.polygons])
+    
+    def plot_with_projection(self, ax=None, projection_type='perspective', **kwargs):
+        """
+        Построение с выбором типа проекции
+        projection_type: 'perspective' или 'axonometric'
+        """
+        if ax is None:
+            fig = plt.figure(figsize=(7,7))
+            ax = fig.add_subplot(111, projection='3d')
+            created_fig = True
+        else:
+            created_fig = False
+        
+        if projection_type == 'axonometric':
+            ax.set_proj_type('ortho')
+        else:
+            ax.set_proj_type('persp')
+        
+        super().plot(ax=ax, **kwargs)
+        
+        if created_fig:
+            plt.show()
+        return ax
+
+def make_polyhedron56_tetrahedron():
+    base = make_tetrahedron()
+    return Polyhedron56(base.polygons)
+
+def make_polyhedron56_cube():
+    base = make_cube()
+    return Polyhedron56(base.polygons)
+
+def make_polyhedron56_octahedron():
+    base = make_octahedron()
+    return Polyhedron56(base.polygons)
+
+# 5-6: Демонстрация нового функционала
+def demo56():
+    """Демонстрация функционала для заданий 5-6"""
+    
+    tet = make_polyhedron56_tetrahedron()
+    cube = make_polyhedron56_cube()
+    octa = make_polyhedron56_octahedron()
+    
+    # Демонстрация разных проекций
+    fig = plt.figure(figsize=(12, 6))
+    
+    ax1 = fig.add_subplot(121, projection='3d')
+    cube.plot_with_projection(ax=ax1, projection_type='perspective', 
+                             face_color=(0.7, 0.8, 1.0))
+    ax1.set_title("Перспективная проекция")
+    
+    ax2 = fig.add_subplot(122, projection='3d')
+    cube.plot_with_projection(ax=ax2, projection_type='axonometric', 
+                             face_color=(0.8, 1.0, 0.7))
+    ax2.set_title("Аксонометрическая проекция")
+    
+    plt.suptitle("Сравнение типов проекций")
+    plt.show()
+    
+    # Вращение вокруг оси через центр, параллельной координатной оси
+    fig = plt.figure(figsize=(15, 5))
+    
+    ax1 = fig.add_subplot(131, projection='3d')
+    cube.plot_with_projection(ax=ax1, face_color=(0.7, 0.9, 0.7))
+    ax1.set_title("Исходный куб")
+    
+    cube_rotated_y = cube.rotate_about_center_axis('y', 45)
+    ax2 = fig.add_subplot(132, projection='3d')
+    cube_rotated_y.plot_with_projection(ax=ax2, face_color=(0.9, 0.7, 0.7))
+    ax2.set_title("Поворот на 45° вокруг оси Y через центр")
+    
+    cube_rotated_z = cube.rotate_about_center_axis('z', 30)
+    ax3 = fig.add_subplot(133, projection='3d')
+    cube_rotated_z.plot_with_projection(ax=ax3, face_color=(0.7, 0.7, 0.9))
+    ax3.set_title("Поворот на 30° вокруг оси Z через центр")
+    
+    plt.suptitle("Вращение вокруг осей через центр многогранника")
+    plt.show()
+    
+    # Поворот вокруг произвольной оси (по двум точкам)
+    fig = plt.figure(figsize=(12, 6))
+    
+    p1 = np.array([-2, -2, -2])
+    p2 = np.array([2, 2, 2])
+    
+    ax1 = fig.add_subplot(121, projection='3d')
+    octa.plot_with_projection(ax=ax1, face_color=(0.8, 0.8, 1.0))
+    ax1.plot([p1[0], p2[0]], [p1[1], p2[1]], [p1[2], p2[2]], 
+             'r-', linewidth=3, label='Ось вращения')
+    ax1.legend()
+    ax1.set_title("Исходный октаэдр с осью вращения")
+    
+    octa_rotated = octa.rotate_about_axis(p1, p2, 60)
+    ax2 = fig.add_subplot(122, projection='3d')
+    octa_rotated.plot_with_projection(ax=ax2, face_color=(1.0, 0.8, 0.8))
+    ax2.plot([p1[0], p2[0]], [p1[1], p2[1]], [p1[2], p2[2]], 
+             'r-', linewidth=3, label='Ось вращения')
+    ax2.legend()
+    ax2.set_title("Октаэдр после поворота на 60° вокруг произвольной оси")
+    
+    plt.suptitle("Поворот вокруг произвольной прямой")
+    plt.show()
+
 def demo():
-    # Создаём фигуры
     tet = make_tetrahedron()
     cube = make_cube()
     octa = make_octahedron()
 
-    # Отрисуем исходные фигуры рядом
     fig = plt.figure(figsize=(15,5))
     axs = [fig.add_subplot(1,3,i+1, projection='3d') for i in range(3)]
     tet.plot(ax=axs[0], face_color=(1.0,0.6,0.6)); axs[0].set_title("Tetrahedron")
@@ -270,13 +362,10 @@ def demo():
     plt.suptitle("Исходные правильные многогранники")
     plt.show()
 
-    # Применим аффинные преобразования к кубу: масштаб относительно центра, поворот, смещение
-    # Пример параметров:
-    tx, ty, tz = 2.0, 0.5, -1.0        # смещение
-    sx, sy, sz = 0.8, 1.5, 0.6        # масштаб
-    angle = 40                        # градусы поворота вокруг произвольной оси
+    tx, ty, tz = 2.0, 0.5, -1.0
+    sx, sy, sz = 0.8, 1.5, 0.6
+    angle = 40
 
-    # создаём матрицу: сначала масштаб относительно центра куба, затем поворот вокруг оси (1,1,0), затем translate
     center = cube.centroid()
     M_scale_center = mat_scale_about_point(sx, sy, sz, center)
     M_rotate = mat_rotate_axis((1,1,0), angle)
@@ -285,16 +374,14 @@ def demo():
 
     transformed_cube = cube.transform(M)
 
-    # Покажем исходный и трансформированный кубы
     fig = plt.figure(figsize=(10,5))
     ax1 = fig.add_subplot(121, projection='3d')
     cube.plot(ax=ax1, face_color=(0.7,0.9,0.7)); ax1.set_title("Исходный куб")
     ax2 = fig.add_subplot(122, projection='3d')
     transformed_cube.plot(ax=ax2, face_color=(0.9,0.7,0.7)); ax2.set_title(
-        f"Куб после: scale({sx},{sy},{sz}) about center, rotate {angle}° axis(1,1,0), translate({tx},{ty},{tz})")
+        f"Куб после преобразований")
     plt.show()
 
-    # Демонстрация последовательных преобразований на тетраэдре
     M1 = mat_rotate_z(30)
     M2 = mat_translate(0.5, 0.0, 0.2)
     M3 = mat_scale(1.2, 1.2, 1.2)
@@ -304,12 +391,12 @@ def demo():
     ax = fig.add_subplot(121, projection='3d')
     tet.plot(ax=ax, face_color=(1,0.8,0.6)); ax.set_title("Исходный тетраэдр")
     ax2 = fig.add_subplot(122, projection='3d')
-    transformed_tet.plot(ax=ax2, face_color=(0.6,0.8,1.0)); ax2.set_title("Тетраэдр после последовательных преобразований")
+    transformed_tet.plot(ax=ax2, face_color=(0.6,0.8,1.0)); ax2.set_title("Тетраэдр после преобразований")
     plt.show()
-
-
 
 if __name__ == "__main__":
     print("=== ДЕМО ОСНОВНЫХ ВОЗМОЖНОСТЕЙ ===")
     demo()
     
+    print("\n=== ДЕМО ФУНКЦИОНАЛА 5-6 ===")
+    demo56()
