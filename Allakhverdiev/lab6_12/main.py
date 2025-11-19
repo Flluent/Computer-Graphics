@@ -100,61 +100,9 @@ def mat_rotate_axis(axis, angle_deg):
     ], dtype=float)
     return R
 
-#3
-def mat_reflect_xy():
-    M = mat_identity()
-    M[2, 2] = -1
-    return M
-
-#3
-def mat_reflect_xz():
-    M = mat_identity()
-    M[1, 1] = -1
-    return M
-
-#3
-def mat_reflect_yz():
-    M = mat_identity()
-    M[0, 0] = -1
-    return M
 
 
-#3
-def mat_rotate_x_about_point(angle_deg, point):
-    px, py, pz = point
-    return (mat_translate(px, py, pz) @ 
-            mat_rotate_x(angle_deg) @ 
-            mat_translate(-px, -py, -pz))
 
-#3
-def mat_rotate_y_about_point(angle_deg, point):
-    px, py, pz = point
-    return (mat_translate(px, py, pz) @ 
-            mat_rotate_y(angle_deg) @ 
-            mat_translate(-px, -py, -pz))
-
-#3
-def mat_rotate_z_about_point(angle_deg, point):
-    px, py, pz = point
-    return (mat_translate(px, py, pz) @ 
-            mat_rotate_z(angle_deg) @ 
-            mat_translate(-px, -py, -pz))
-
-#3
-def mat_rotate_about_line(point1, point2, angle_deg):
-    axis = np.array(point2) - np.array(point1)
-    T1 = mat_translate(-point1[0], -point1[1], -point1[2])
-    R = mat_rotate_axis(axis, angle_deg)
-    T2 = mat_translate(point1[0], point1[1], point1[2])
-    return T2 @ R @ T1
-
-#3
-def setup_perspective_projection(ax, fov=60, dist=10):
-    ax.set_proj_type('persp')
-
-#3
-def setup_axonometric_projection(ax):
-    ax.set_proj_type('ortho')
 
 # ---------------------
 # Классы геометрии
@@ -360,122 +308,8 @@ def demo():
     plt.show()
 
 
-#3
-def demo_all_features():
-    tet = make_tetrahedron()
-    cube = make_cube()
-    octa = make_octahedron()
-    
-    fig = plt.figure(figsize=(15, 5))
-    
-    cube_reflected_xy = cube.transform(mat_reflect_xy())
-    ax1 = fig.add_subplot(131, projection='3d')
-    cube.plot(ax=ax1, face_color=(0.7, 0.9, 0.7))
-    cube_reflected_xy.plot(ax=ax1, face_color=(0.9, 0.7, 0.7), alpha=0.7)
-    ax1.set_title("Отражение относительно XY")
-    
-    cube_reflected_xz = cube.transform(mat_reflect_xz())
-    ax2 = fig.add_subplot(132, projection='3d')
-    cube.plot(ax=ax2, face_color=(0.7, 0.9, 0.7))
-    cube_reflected_xz.plot(ax=ax2, face_color=(0.9, 0.7, 0.7), alpha=0.7)
-    ax2.set_title("Отражение относительно XZ")
-    
-    cube_reflected_yz = cube.transform(mat_reflect_yz())
-    ax3 = fig.add_subplot(133, projection='3d')
-    cube.plot(ax=ax3, face_color=(0.7, 0.9, 0.7))
-    cube_reflected_yz.plot(ax=ax3, face_color=(0.9, 0.7, 0.7), alpha=0.7)
-    ax3.set_title("Отражение относительно YZ")
-    
-    plt.tight_layout()
-    plt.show()
-    
-    fig = plt.figure(figsize=(15, 5))
-    
-    center = cube.centroid()
-    
-    cube_rot_x = cube.transform(mat_rotate_x_about_point(45, center))
-    ax1 = fig.add_subplot(131, projection='3d')
-    cube.plot(ax=ax1, face_color=(0.7, 0.9, 0.7))
-    cube_rot_x.plot(ax=ax1, face_color=(0.9, 0.7, 0.7), alpha=0.7)
-    ax1.set_title("Вращение вокруг X через центр")
-    
-    cube_rot_y = cube.transform(mat_rotate_y_about_point(45, center))
-    ax2 = fig.add_subplot(132, projection='3d')
-    cube.plot(ax=ax2, face_color=(0.7, 0.9, 0.7))
-    cube_rot_y.plot(ax=ax2, face_color=(0.9, 0.7, 0.7), alpha=0.7)
-    ax2.set_title("Вращение вокруг Y через центр")
-    
-    cube_rot_z = cube.transform(mat_rotate_z_about_point(45, center))
-    ax3 = fig.add_subplot(133, projection='3d')
-    cube.plot(ax=ax3, face_color=(0.7, 0.9, 0.7))
-    cube_rot_z.plot(ax=ax3, face_color=(0.9, 0.7, 0.7), alpha=0.7)
-    ax3.set_title("Вращение вокруг Z через центр")
-    
-    plt.tight_layout()
-    plt.show()
-    
-    fig = plt.figure(figsize=(10, 5))
-    
-    point1 = (0, 0, 0)
-    point2 = (1, 1, 1)
-    
-    cube_rot_line = cube.transform(mat_rotate_about_line(point1, point2, 60))
-    
-    ax1 = fig.add_subplot(121, projection='3d')
-    cube.plot(ax=ax1, face_color=(0.7, 0.9, 0.7))
-    ax1.set_title("Исходный куб")
-    
-    ax2 = fig.add_subplot(122, projection='3d')
-    cube_rot_line.plot(ax=ax2, face_color=(0.9, 0.7, 0.7))
-    ax2.plot([point1[0], point2[0]], [point1[1], point2[1]], [point1[2], point2[2]], 
-             'r-', linewidth=3, label='Ось вращения')
-    ax2.legend()
-    ax2.set_title("Поворот вокруг произвольной прямой")
-    
-    plt.tight_layout()
-    plt.show()
-    
-    fig = plt.figure(figsize=(12, 6))
-    
-    ax1 = fig.add_subplot(121, projection='3d')
-    setup_perspective_projection(ax1)
-    cube.plot(ax=ax1, face_color=(0.7, 0.8, 1.0))
-    ax1.set_title("Перспективная проекция")
-    
-    ax2 = fig.add_subplot(122, projection='3d')
-    setup_axonometric_projection(ax2)
-    cube.plot(ax=ax2, face_color=(1.0, 0.8, 0.7))
-    ax2.set_title("Аксонометрическая проекция")
-    
-    plt.tight_layout()
-    plt.show()
-    
-    fig = plt.figure(figsize=(10, 5))
-    
-    ax1 = fig.add_subplot(121, projection='3d')
-    octa.plot(ax=ax1, face_color=(0.6, 0.8, 1.0))
-    ax1.set_title("Исходный октаэдр")
-    
-    center = octa.centroid()
-    
-    M_scale = mat_scale_about_point(1.5, 0.8, 1.2, center)
-    M_reflect = mat_reflect_xy()
-    M_rotate = mat_rotate_y_about_point(30, center)
-    M_translate = mat_translate(2, 0, 0)
-    
-    M_total = M_translate @ M_rotate @ M_reflect @ M_scale
-    octa_transformed = octa.transform(M_total)
-    
-    ax2 = fig.add_subplot(122, projection='3d')
-    octa_transformed.plot(ax=ax2, face_color=(1.0, 0.7, 0.7))
-    ax2.set_title("После масштабирования, отражения,\nвращения и переноса")
-    
-    plt.tight_layout()
-    plt.show()
 
 if __name__ == "__main__":
     print("=== ДЕМО ОСНОВНЫХ ВОЗМОЖНОСТЕЙ ===")
     demo()
     
-    print("\n=== ДЕМО ВСЕХ ТРЕБУЕМЫХ ФУНКЦИЙ ===")
-    demo_all_features()
