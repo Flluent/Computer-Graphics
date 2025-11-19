@@ -100,10 +100,6 @@ def mat_rotate_axis(axis, angle_deg):
     ], dtype=float)
     return R
 
-# ---------------------
-# РЕАЛИЗАЦИЯ СТУДЕНТА: Матрицы отражения
-# ---------------------
-
 #3
 def mat_reflect_xy():
     M = mat_identity()
@@ -122,9 +118,6 @@ def mat_reflect_yz():
     M[0, 0] = -1
     return M
 
-# ---------------------
-# РЕАЛИЗАЦИЯ СТУДЕНТА: Вращение вокруг осей через произвольную точку
-# ---------------------
 
 #3
 def mat_rotate_x_about_point(angle_deg, point):
@@ -147,10 +140,6 @@ def mat_rotate_z_about_point(angle_deg, point):
             mat_rotate_z(angle_deg) @ 
             mat_translate(-px, -py, -pz))
 
-# ---------------------
-# РЕАЛИЗАЦИЯ СТУДЕНТА: Поворот вокруг произвольной прямой через две точки
-# ---------------------
-
 #3
 def mat_rotate_about_line(point1, point2, angle_deg):
     axis = np.array(point2) - np.array(point1)
@@ -158,10 +147,6 @@ def mat_rotate_about_line(point1, point2, angle_deg):
     R = mat_rotate_axis(axis, angle_deg)
     T2 = mat_translate(point1[0], point1[1], point1[2])
     return T2 @ R @ T1
-
-# ---------------------
-# РЕАЛИЗАЦИЯ СТУДЕНТА: Функции для настройки проекций
-# ---------------------
 
 #3
 def setup_perspective_projection(ax, fov=60, dist=10):
@@ -374,9 +359,6 @@ def demo():
     transformed_tet.plot(ax=ax2, face_color=(0.6,0.8,1.0)); ax2.set_title("Тетраэдр после последовательных преобразований")
     plt.show()
 
-# ---------------------
-# РЕАЛИЗАЦИЯ СТУДЕНТА: Новая демонстрация всех возможностей
-# ---------------------
 
 #3
 def demo_all_features():
@@ -491,9 +473,6 @@ def demo_all_features():
     plt.tight_layout()
     plt.show()
 
-# ---------------------
-# ОБНОВЛЕННЫЙ MAIN
-# ---------------------
 if __name__ == "__main__":
     print("=== ДЕМО ОСНОВНЫХ ВОЗМОЖНОСТЕЙ ===")
     demo()
