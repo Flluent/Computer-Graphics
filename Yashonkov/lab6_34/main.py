@@ -163,77 +163,6 @@ def mat_scale_about_center(sx, sy, sz, polyhedron):
     return mat_scale_about_point(sx, sy, sz, center)
 
 
-# ---------------------
-# НОВЫЕ ФУНКЦИИ ДЛЯ ВРАЩЕНИЙ И ПРОЕКЦИЙ
-# ---------------------
-def mat_rotate_axis_through_center_parallel(axis_direction, angle_deg, center):
-    """
-    Вращение вокруг оси, проходящей через центр многогранника 
-    и параллельной координатной оси.
-    axis_direction: 'x', 'y', или 'z'
-    center: точка центра (3,)
-    angle_deg: угол в градусах
-    """
-    # Смещаем в начало координат -> вращаем -> возвращаем обратно
-    M_translate_to_origin = mat_translate(-center[0], -center[1], -center[2])
-    M_translate_back = mat_translate(center[0], center[1], center[2])
-    
-    if axis_direction == 'x':
-        M_rotate = mat_rotate_x(angle_deg)
-    elif axis_direction == 'y':
-        M_rotate = mat_rotate_y(angle_deg)
-    elif axis_direction == 'z':
-        M_rotate = mat_rotate_z(angle_deg)
-    else:
-        raise ValueError("Axis must be 'x', 'y', or 'z'")
-    
-    return M_translate_back @ M_rotate @ M_translate_to_origin
-
-
-def mat_rotate_arbitrary_axis(point1, point2, angle_deg):
-    """
-    Поворот вокруг произвольной прямой, заданной двумя точками.
-    point1, point2: точки (3,) определяющие прямую
-    angle_deg: угол в градусах
-    """
-    p1 = np.array(point1, dtype=float)
-    p2 = np.array(point2, dtype=float)
-    
-    # Вектор направления оси
-    axis_vector = p2 - p1
-    
-    # Перемещаем ось в начало координат
-    M_translate_to_origin = mat_translate(-p1[0], -p1[1], -p1[2])
-    M_translate_back = mat_translate(p1[0], p1[1], p1[2])
-    
-    # Вращаем вокруг оси
-    M_rotate = mat_rotate_axis(axis_vector, angle_deg)
-    
-    return M_translate_back @ M_rotate @ M_translate_to_origin
-
-
-def mat_perspective_projection(d=2.0):
-    """Перспективная проекция с расстоянием d от наблюдателя"""
-    M = np.eye(4, dtype=float)
-    M[3, 2] = -1/d  # Перспективное искажение
-    return M
-
-
-def mat_axonometric_projection():
-    """Аксонометрическая проекция (ортографическая)"""
-    M = np.eye(4, dtype=float)
-    M[2, 2] = 0  # Обнуляем z-координату
-    return M
-
-
-def mat_isometric_projection():
-    """Изометрическая проекция"""
-    # Поворот на 45° вокруг Y, затем на 35.264° вокруг X
-    M_rotY = mat_rotate_y(45)
-    M_rotX = mat_rotate_x(35.264)
-    M_ortho = mat_axonometric_projection()
-    return M_ortho @ M_rotX @ M_rotY
-
 
 # ---------------------
 # Классы геометрии
@@ -552,121 +481,10 @@ def demo_new_transformations():
     plt.show()
 
 
-# ---------------------
-# ДЕМОНСТРАЦИЯ НОВЫХ ВРАЩЕНИЙ И ПРОЕКЦИЙ
-# ---------------------
-def demo_rotations_and_projections():
-    """Демонстрация новых вращений и проекций"""
-    
-    # Создаем октаэдр для демонстрации
-    octa = make_octahedron()
-    
-    # Применяем смещение для лучшей видимости
-    octa = octa.transform(mat_translate(0, 0, 0.5))
-    
-    fig = plt.figure(figsize=(18, 12))
-    
-    # 1. Вращение вокруг оси через центр, параллельной X
-    octa_rot_x = octa.rotate_axis_through_center_parallel('x', 45)
-    ax1 = fig.add_subplot(2, 3, 1, projection='3d')
-    octa.plot(ax=ax1, face_color=(0.8, 0.6, 0.6), alpha=0.7)
-    octa_rot_x.plot(ax=ax1, face_color=(0.6, 0.8, 0.6), alpha=0.7)
-    ax1.set_title("Вращение вокруг оси через центр\nпараллельной X (45°)")
-    ax1.legend(["Исходный", "Повернутый"])
-    
-    # 2. Вращение вокруг оси через центр, параллельной Y
-    octa_rot_y = octa.rotate_axis_through_center_parallel('y', 30)
-    ax2 = fig.add_subplot(2, 3, 2, projection='3d')
-    octa.plot(ax=ax2, face_color=(0.8, 0.6, 0.6), alpha=0.7)
-    octa_rot_y.plot(ax=ax2, face_color=(0.6, 0.6, 0.8), alpha=0.7)
-    ax2.set_title("Вращение вокруг оси через центр\nпараллельной Y (30°)")
-    ax2.legend(["Исходный", "Повернутый"])
-    
-    # 3. Вращение вокруг произвольной оси
-    point1 = [-2, -2, -2]  # Первая точка оси
-    point2 = [2, 2, 2]     # Вторая точка оси
-    octa_rot_arb = octa.rotate_arbitrary_axis(point1, point2, 60)
-    ax3 = fig.add_subplot(2, 3, 3, projection='3d')
-    octa.plot(ax=ax3, face_color=(0.8, 0.6, 0.6), alpha=0.7)
-    octa_rot_arb.plot(ax=ax3, face_color=(0.8, 0.8, 0.4), alpha=0.7)
-    
-    # Рисуем ось вращения
-    ax3.plot([point1[0], point2[0]], [point1[1], point2[1]], [point1[2], point2[2]], 
-             'r-', linewidth=3, label='Ось вращения')
-    ax3.set_title("Вращение вокруг произвольной оси\n(60°)")
-    ax3.legend(["Исходный", "Повернутый", "Ось вращения"])
-    
-    # 4. Аксонометрическая проекция
-    octa_axono = octa.apply_projection('axonometric')
-    ax4 = fig.add_subplot(2, 3, 4, projection='3d')
-    octa_axono.plot(ax=ax4, face_color=(0.7, 0.8, 0.9), alpha=0.8)
-    ax4.set_title("Аксонометрическая проекция\n(ортографическая)")
-    
-    # 5. Перспективная проекция (d=3)
-    octa_persp = octa.apply_projection('perspective', d=3)
-    ax5 = fig.add_subplot(2, 3, 5, projection='3d')
-    octa_persp.plot(ax=ax5, face_color=(0.9, 0.7, 0.8), alpha=0.8)
-    ax5.set_title("Перспективная проекция\n(d=3)")
-    
-    # 6. Изометрическая проекция
-    octa_iso = octa.apply_projection('isometric')
-    ax6 = fig.add_subplot(2, 3, 6, projection='3d')
-    octa_iso.plot(ax=ax6, face_color=(0.8, 0.9, 0.7), alpha=0.8)
-    ax6.set_title("Изометрическая проекция")
-    
-    plt.tight_layout()
-    plt.suptitle("Демонстрация новых вращений и проекций\n", y=1.02, fontsize=14)
-    plt.show()
 
 
-# ---------------------
-# ИНТЕРАКТИВНАЯ ДЕМОНСТРАЦИЯ ПРОЕКЦИЙ
-# ---------------------
-def demo_projection_comparison():
-    """Сравнение разных проекций на одном многограннике"""
-    
-    # Создаем тетраэдр и применяем к нему различные проекции
-    tet = make_tetrahedron()
-    tet = tet.transform(mat_scale(1.5, 1.5, 1.5))  # Увеличиваем для наглядности
-    
-    projections = [
-        ('Без проекции', None),
-        ('Аксонометрическая', 'axonometric'),
-        ('Перспективная (d=2)', lambda: tet.apply_projection('perspective', d=2)),
-        ('Перспективная (d=4)', lambda: tet.apply_projection('perspective', d=4)),
-        ('Изометрическая', 'isometric')
-    ]
-    
-    fig = plt.figure(figsize=(20, 8))
-    
-    for i, (title, proj_type) in enumerate(projections):
-        ax = fig.add_subplot(2, 3, i+1, projection='3d')
-        
-        if proj_type is None:
-            # Без проекции
-            tet.plot(ax=ax, face_color=(0.8, 0.7, 0.9), alpha=0.8)
-        elif callable(proj_type):
-            # Для перспективных проекций с разными параметрами
-            tet_proj = proj_type()
-            tet_proj.plot(ax=ax, face_color=(0.7, 0.9, 0.8), alpha=0.8)
-        else:
-            # Стандартные проекции
-            tet_proj = tet.apply_projection(proj_type)
-            tet_proj.plot(ax=ax, face_color=(0.9, 0.8, 0.7), alpha=0.8)
-        
-        ax.set_title(title)
-        ax.set_xlim(-2, 2)
-        ax.set_ylim(-2, 2)
-        ax.set_zlim(-2, 2)
-    
-    plt.tight_layout()
-    plt.suptitle("Сравнение различных проекций тетраэдра\n", y=1.02, fontsize=14)
-    plt.show()
 
 
-# ---------------------
-# Примеры использования
-# ---------------------
 def demo():
     # Создаём фигуры
     tet = make_tetrahedron()
@@ -729,6 +547,4 @@ def demo():
 
 if __name__ == "__main__":
     demo()
-    demo_new_transformations()  # Запуск демонстрации новых функций
-    demo_rotations_and_projections()  # Демонстрация вращений и проекций
-    demo_projection_comparison()  # Сравнение проекций
+    
